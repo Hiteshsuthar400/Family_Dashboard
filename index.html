@@ -1,0 +1,909 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Family Directory & Invitation Manager</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --text: #182230;
+      --muted: #697586;
+      --primary: #5145cd;
+      --border: #e4e8ef;
+      --danger: #d92d20;
+      --success: #039855;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, sans-serif;
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      background: var(--primary);
+      color: white;
+    }
+
+    button.secondary {
+      background: #e9e7ff;
+      color: #3830a5;
+    }
+
+    button.danger { background: var(--danger); }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px;
+      background: white;
+      color: var(--text);
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    .container {
+      max-width: 1250px;
+      margin: auto;
+      padding: 22px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 22px;
+    }
+
+    .topbar h1 { margin: 0; font-size: 23px; }
+
+    .muted { color: var(--muted); font-size: 13px; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      padding: 18px;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 8px rgba(16,24,40,.03);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 27px;
+      margin-top: 8px;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 13px;
+    }
+
+    .field.full { grid-column: 1 / -1; }
+
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 850px;
+    }
+
+    th, td {
+      padding: 12px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    th { color: var(--muted); background: #fafbfc; }
+
+    .badge {
+      display: inline-block;
+      border-radius: 20px;
+      padding: 5px 9px;
+      background: #f2f4f7;
+      font-size: 11px;
+    }
+
+    .badge.green { background: #dcfae6; color: #067647; }
+    .badge.yellow { background: #fef0c7; color: #93370d; }
+    .badge.red { background: #fee4e2; color: #b42318; }
+
+    .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .actions button { padding: 7px 9px; font-size: 12px; }
+
+    .hidden { display: none !important; }
+
+    .login-box {
+      max-width: 400px;
+      margin: 10vh auto;
+    }
+
+    .login-box h2 { margin-top: 0; }
+
+    .message {
+      padding: 11px;
+      border-radius: 8px;
+      margin: 12px 0;
+      font-size: 13px;
+      display: none;
+    }
+
+    .message.error { background: #fee4e2; color: #b42318; }
+    .message.info { background: #e9e7ff; color: #3830a5; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 15px;
+      z-index: 10;
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 650px;
+      max-height: 90vh;
+      overflow-y: auto;
+      background: white;
+      border-radius: 14px;
+      padding: 20px;
+    }
+
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .modal-head h2 { margin: 0; }
+
+    .form-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 18px;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 30px;
+      color: var(--muted);
+    }
+
+    @media(max-width: 750px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .toolbar { grid-template-columns: 1fr 1fr; }
+      .toolbar .search { grid-column: 1 / -1; }
+      .container { padding: 12px; }
+    }
+
+    @media(max-width: 480px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+      .topbar h1 { font-size: 19px; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- LOGIN -->
+  <section id="loginScreen" class="login-box card">
+    <h2>Family Directory</h2>
+    <p class="muted">Sign in to manage your family records and invitations.</p>
+
+    <div id="loginMessage" class="message error"></div>
+
+    <form id="loginForm">
+      <div style="margin-bottom:14px">
+        <label>Email address</label>
+        <input id="loginEmail" type="email" required autocomplete="username">
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label>Password</label>
+        <input id="loginPassword" type="password" required
+          autocomplete="current-password">
+      </div>
+
+      <button type="submit" style="width:100%">Login</button>
+    </form>
+  </section>
+
+  <!-- DASHBOARD -->
+  <main id="appScreen" class="container hidden">
+
+    <header class="topbar">
+      <div>
+        <h1>Family Directory</h1>
+        <div class="muted">Family Relative & Invitation Management</div>
+      </div>
+
+      <div class="actions">
+        <select id="languageSelect" style="width:auto">
+          <option value="en">English</option>
+          <option value="hi">हिन्दी</option>
+          <option value="gu">ગુજરાતી</option>
+        </select>
+        <button class="secondary" id="exportBtn">Export CSV</button>
+        <button class="danger" id="logoutBtn">Logout</button>
+      </div>
+    </header>
+
+    <div id="appMessage" class="message info"></div>
+
+    <section class="stats">
+      <div class="card stat">
+        <span class="muted">Total relatives</span>
+        <strong id="totalCount">0</strong>
+      </div>
+      <div class="card stat">
+        <span class="muted">Paternal</span>
+        <strong id="paternalCount">0</strong>
+      </div>
+      <div class="card stat">
+        <span class="muted">Maternal</span>
+        <strong id="maternalCount">0</strong>
+      </div>
+      <div class="card stat">
+        <span class="muted">Invitations sent</span>
+        <strong id="sentCount">0</strong>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="topbar">
+        <div>
+          <h2 style="margin:0">Relative Directory</h2>
+          <span class="muted">Manage family members and invitation status.</span>
+        </div>
+        <button id="addBtn">+ Add Relative</button>
+      </div>
+
+      <div class="toolbar">
+        <div class="search">
+          <label>Search</label>
+          <input id="searchInput" placeholder="Search name, phone, relation or city...">
+        </div>
+
+        <div>
+          <label>Family side</label>
+          <select id="sideFilter">
+            <option value="">All sides</option>
+            <option value="Paternal">Paternal</option>
+            <option value="Maternal">Maternal</option>
+            <option value="In-Laws">In-Laws</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Invitation</label>
+          <select id="statusFilter">
+            <option value="">All statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Sent">Sent</option>
+            <option value="Confirmed">Confirmed</option>
+          </select>
+        </div>
+
+        <button class="secondary" id="refreshBtn">Refresh</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Relation</th>
+              <th>Side</th>
+              <th>Phone</th>
+              <th>City</th>
+              <th>Invitation</th>
+              <th>RSVP</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="relativeTable"></tbody>
+        </table>
+      </div>
+
+      <div id="emptyState" class="empty hidden">
+        No family records found.
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ADD / EDIT MODAL -->
+  <div id="relativeModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="modalTitle">Add Relative</h2>
+        <button class="secondary" id="closeModalBtn">Close</button>
+      </div>
+
+      <form id="relativeForm">
+        <input type="hidden" id="relativeId">
+
+        <div class="form-grid">
+          <div class="field">
+            <label>Full name *</label>
+            <input id="relativeName" required maxlength="120">
+          </div>
+
+          <div class="field">
+            <label>Relation *</label>
+            <input id="relativeRelation" required
+              placeholder="Uncle, Aunt, Cousin...">
+          </div>
+
+          <div class="field">
+            <label>Family side *</label>
+            <select id="relativeSide" required>
+              <option value="Paternal">Paternal</option>
+              <option value="Maternal">Maternal</option>
+              <option value="In-Laws">In-Laws</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Phone number</label>
+            <input id="relativePhone" type="tel" maxlength="20">
+          </div>
+
+          <div class="field">
+            <label>City / Village</label>
+            <input id="relativeCity" maxlength="100">
+          </div>
+
+          <div class="field">
+            <label>Invitation status</label>
+            <select id="relativeStatus">
+              <option value="Pending">Pending</option>
+              <option value="Sent">Sent</option>
+              <option value="Confirmed">Confirmed</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Invitation date</label>
+            <input id="invitationDate" type="date">
+          </div>
+
+          <div class="field">
+            <label>RSVP status</label>
+            <select id="rsvpStatus">
+              <option value="Pending">Pending</option>
+              <option value="Accepted">Accepted</option>
+              <option value="Declined">Declined</option>
+            </select>
+          </div>
+
+          <div class="field full">
+            <label>Notes</label>
+            <textarea id="relativeNotes" rows="3"
+              placeholder="Additional details..."></textarea>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="secondary" id="cancelBtn">Cancel</button>
+          <button type="submit" id="saveBtn">Save Relative</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // 1. SUPABASE CONFIGURATION
+    // ==========================================
+
+    const SUPABASE_URL = "YOUR_SUPABASE_PROJECT_URL";
+    const SUPABASE_ANON_KEY = "YOUR_SUPABASE_PUBLISHABLE_KEY";
+
+    const TABLE = "family_relatives";
+
+    if (
+      !window.supabase ||
+      SUPABASE_URL.includes("YOUR_") ||
+      SUPABASE_ANON_KEY.includes("YOUR_")
+    ) {
+      console.warn("Configure your Supabase URL and publishable key.");
+    }
+
+    const db = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    );
+
+    let relatives = [];
+    let editingId = null;
+    let currentLanguage = "en";
+
+    // ==========================================
+    // 2. TRANSLATIONS
+    // ==========================================
+
+    const translations = {
+      en: {
+        title: "Family Directory",
+        add: "+ Add Relative",
+        total: "Total relatives",
+        paternal: "Paternal",
+        maternal: "Maternal",
+        sent: "Invitations sent",
+        empty: "No family records found."
+      },
+      hi: {
+        title: "परिवार निर्देशिका",
+        add: "+ सदस्य जोड़ें",
+        total: "कुल रिश्तेदार",
+        paternal: "पैतृक परिवार",
+        maternal: "मातृ परिवार",
+        sent: "भेजे गए निमंत्रण",
+        empty: "कोई रिकॉर्ड नहीं मिला।"
+      },
+      gu: {
+        title: "પરિવાર ડિરેક્ટરી",
+        add: "+ સભ્ય ઉમેરો",
+        total: "કુલ સંબંધીઓ",
+        paternal: "પિતૃ પક્ષ",
+        maternal: "માતૃ પક્ષ",
+        sent: "મોકલેલા આમંત્રણો",
+        empty: "કોઈ રેકોર્ડ મળ્યો નથી."
+      }
+    };
+
+    // ==========================================
+    // 3. UI HELPERS
+    // ==========================================
+
+    const $ = id => document.getElementById(id);
+
+    function showMessage(message, type = "info", target = "appMessage") {
+      const el = $(target);
+      el.textContent = message;
+      el.className = "message " + type;
+      el.style.display = "block";
+
+      setTimeout(() => {
+        el.style.display = "none";
+      }, 5000);
+    }
+
+    function setLoading(button, loading, normalText) {
+      button.disabled = loading;
+      button.textContent = loading ? "Please wait..." : normalText;
+    }
+
+    function escapeHTML(value) {
+      return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      })[char]);
+    }
+
+    function badgeClass(status) {
+      if (["Sent", "Confirmed", "Accepted"].includes(status)) return "green";
+      if (["Declined"].includes(status)) return "red";
+      return "yellow";
+    }
+
+    // ==========================================
+    // 4. AUTHENTICATION
+    // ==========================================
+
+    async function checkSession() {
+      const { data, error } = await db.auth.getSession();
+
+      if (error) {
+        showMessage(error.message, "error", "loginMessage");
+        return;
+      }
+
+      if (data.session) {
+        showDashboard();
+      } else {
+        showLogin();
+      }
+    }
+
+    function showLogin() {
+      $("loginScreen").classList.remove("hidden");
+      $("appScreen").classList.add("hidden");
+    }
+
+    async function showDashboard() {
+      $("loginScreen").classList.add("hidden");
+      $("appScreen").classList.remove("hidden");
+      await loadRelatives();
+    }
+
+    $("loginForm").addEventListener("submit", async event => {
+      event.preventDefault();
+
+      const button = event.submitter;
+      setLoading(button, true, "Login");
+
+      const email = $("loginEmail").value.trim();
+      const password = $("loginPassword").value;
+
+      const { data, error } = await db.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      setLoading(button, false, "Login");
+
+      if (error) {
+        showMessage(error.message, "error", "loginMessage");
+        return;
+      }
+
+      $("loginPassword").value = "";
+      await showDashboard();
+    });
+
+    $("logoutBtn").addEventListener("click", async () => {
+      const { error } = await db.auth.signOut();
+
+      if (error) {
+        showMessage(error.message, "error");
+        return;
+      }
+
+      relatives = [];
+      showLogin();
+    });
+
+    db.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") showLogin();
+    });
+
+    // ==========================================
+    // 5. READ RECORDS
+    // ==========================================
+
+    async function loadRelatives() {
+      $("relativeTable").innerHTML =
+        '<tr><td colspan="8">Loading records...</td></tr>';
+
+      const { data, error } = await db
+        .from(TABLE)
+        .select("*")
+        .order("name", { ascending: true });
+
+      if (error) {
+        $("relativeTable").innerHTML = "";
+        showMessage("Database error: " + error.message, "error");
+        return;
+      }
+
+      relatives = data || [];
+      renderDashboard();
+    }
+
+    // ==========================================
+    // 6. RENDER DASHBOARD
+    // ==========================================
+
+    function renderDashboard() {
+      $("totalCount").textContent = relatives.length;
+
+      $("paternalCount").textContent =
+        relatives.filter(r => r.side === "Paternal").length;
+
+      $("maternalCount").textContent =
+        relatives.filter(r => r.side === "Maternal").length;
+
+      $("sentCount").textContent =
+        relatives.filter(r => r.status === "Sent" ||
+                              r.status === "Confirmed").length;
+
+      const search = $("searchInput").value.toLowerCase().trim();
+      const side = $("sideFilter").value;
+      const status = $("statusFilter").value;
+
+      const filtered = relatives.filter(r => {
+        const searchable = [
+          r.name, r.relation, r.phone, r.city, r.notes
+        ].join(" ").toLowerCase();
+
+        return (
+          (!search || searchable.includes(search)) &&
+          (!side || r.side === side) &&
+          (!status || r.status === status)
+        );
+      });
+
+      const tbody = $("relativeTable");
+      tbody.innerHTML = "";
+
+      $("emptyState").classList.toggle("hidden", filtered.length !== 0);
+
+      filtered.forEach(r => {
+        const tr = document.createElement("tr");
+
+        const phone = String(r.phone || "").replace(/[^\d+]/g, "");
+        const safePhone = encodeURIComponent(phone);
+
+        tr.innerHTML = `
+          <td><strong>${escapeHTML(r.name)}</strong></td>
+          <td>${escapeHTML(r.relation)}</td>
+          <td>${escapeHTML(r.side)}</td>
+          <td>${escapeHTML(r.phone || "-")}</td>
+          <td>${escapeHTML(r.city || "-")}</td>
+          <td><span class="badge ${badgeClass(r.status)}">
+            ${escapeHTML(r.status)}
+          </span></td>
+          <td><span class="badge ${badgeClass(r.rsvp_status)}">
+            ${escapeHTML(r.rsvp_status || "Pending")}
+          </span></td>
+          <td>
+            <div class="actions">
+              ${phone ? `
+                <a href="tel:${escapeHTML(phone)}">
+                  <button type="button" class="secondary">Call</button>
+                </a>
+                <a href="https://wa.me/${safePhone}" target="_blank"
+                   rel="noopener">
+                  <button type="button" class="secondary">WhatsApp</button>
+                </a>
+              ` : ""}
+              <button type="button" class="secondary"
+                data-edit="${escapeHTML(r.id)}">Edit</button>
+              <button type="button" class="danger"
+                data-delete="${escapeHTML(r.id)}">Delete</button>
+            </div>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    $("relativeTable").addEventListener("click", event => {
+      const editButton = event.target.closest("[data-edit]");
+      const deleteButton = event.target.closest("[data-delete]");
+
+      if (editButton) openEdit(editButton.dataset.edit);
+      if (deleteButton) deleteRelative(deleteButton.dataset.delete);
+    });
+
+    // ==========================================
+    // 7. CREATE / UPDATE
+    // ==========================================
+
+    function openModal() {
+      $("relativeModal").classList.remove("hidden");
+    }
+
+    function closeModal() {
+      $("relativeModal").classList.add("hidden");
+      $("relativeForm").reset();
+      $("relativeId").value = "";
+      editingId = null;
+      $("modalTitle").textContent = "Add Relative";
+    }
+
+    function openEdit(id) {
+      const r = relatives.find(item => item.id === id);
+      if (!r) return;
+
+      editingId = id;
+
+      $("relativeId").value = r.id;
+      $("relativeName").value = r.name || "";
+      $("relativeRelation").value = r.relation || "";
+      $("relativeSide").value = r.side || "Paternal";
+      $("relativePhone").value = r.phone || "";
+      $("relativeCity").value = r.city || "";
+      $("relativeStatus").value = r.status || "Pending";
+      $("invitationDate").value = r.invitation_date || "";
+      $("rsvpStatus").value = r.rsvp_status || "Pending";
+      $("relativeNotes").value = r.notes || "";
+
+      $("modalTitle").textContent = "Edit Relative";
+      openModal();
+    }
+
+    $("addBtn").addEventListener("click", () => {
+      closeModal();
+      openModal();
+    });
+
+    $("closeModalBtn").addEventListener("click", closeModal);
+    $("cancelBtn").addEventListener("click", closeModal);
+
+    $("relativeForm").addEventListener("submit", async event => {
+      event.preventDefault();
+
+      const saveButton = $("saveBtn");
+      setLoading(saveButton, true, "Save Relative");
+
+      const record = {
+        name: $("relativeName").value.trim(),
+        relation: $("relativeRelation").value.trim(),
+        side: $("relativeSide").value,
+        phone: $("relativePhone").value.trim() || null,
+        city: $("relativeCity").value.trim() || null,
+        status: $("relativeStatus").value,
+        invitation_date: $("invitationDate").value || null,
+        rsvp_status: $("rsvpStatus").value,
+        notes: $("relativeNotes").value.trim() || null,
+        updated_at: new Date().toISOString()
+      };
+
+      let result;
+
+      if (editingId) {
+        result = await db
+          .from(TABLE)
+          .update(record)
+          .eq("id", editingId);
+      } else {
+        result = await db
+          .from(TABLE)
+          .insert(record);
+      }
+
+      setLoading(saveButton, false, "Save Relative");
+
+      if (result.error) {
+        showMessage(result.error.message, "error");
+        return;
+      }
+
+      closeModal();
+      showMessage(editingId ? "Relative updated." : "Relative added.");
+      await loadRelatives();
+    });
+
+    // ==========================================
+    // 8. DELETE
+    // ==========================================
+
+    async function deleteRelative(id) {
+      const r = relatives.find(item => item.id === id);
+      if (!r) return;
+
+      if (!confirm(`Delete ${r.name}? This cannot be undone.`)) return;
+
+      const { error } = await db
+        .from(TABLE)
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        showMessage(error.message, "error");
+        return;
+      }
+
+      showMessage("Relative deleted.");
+      await loadRelatives();
+    }
+
+    // ==========================================
+    // 9. SEARCH / FILTER / REFRESH
+    // ==========================================
+
+    $("searchInput").addEventListener("input", renderDashboard);
+    $("sideFilter").addEventListener("change", renderDashboard);
+    $("statusFilter").addEventListener("change", renderDashboard);
+
+    $("refreshBtn").addEventListener("click", loadRelatives);
+
+    // ==========================================
+    // 10. CSV EXPORT
+    // ==========================================
+
+    $("exportBtn").addEventListener("click", () => {
+      if (!relatives.length) {
+        showMessage("No records to export.");
+        return;
+      }
+
+      const columns = [
+        "name", "relation", "side", "phone", "city",
+        "status", "invitation_date", "rsvp_status", "notes"
+      ];
+
+      const quote = value =>
+        '"' + String(value ?? "").replace(/"/g, '""') + '"';
+
+      const rows = [
+        columns.join(","),
+        ...relatives.map(r => columns.map(c => quote(r[c])).join(","))
+      ];
+
+      const blob = new Blob(
+        ["\uFEFF" + rows.join("\r\n")],
+        { type: "text/csv;charset=utf-8;" }
+      );
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "family-directory.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // ==========================================
+    // 11. LANGUAGE
+    // ==========================================
+
+    $("languageSelect").addEventListener("change", event => {
+      currentLanguage = event.target.value;
+      const t = translations[currentLanguage];
+
+      document.querySelector(".topbar h1").textContent = t.title;
+      $("addBtn").textContent = t.add;
+      document.querySelectorAll(".stat .muted")[0].textContent = t.total;
+      document.querySelectorAll(".stat .muted")[1].textContent = t.paternal;
+      document.querySelectorAll(".stat .muted")[2].textContent = t.maternal;
+      document.querySelectorAll(".stat .muted")[3].textContent = t.sent;
+      $("emptyState").textContent = t.empty;
+    });
+
+    // ==========================================
+    // 12. INITIALIZATION
+    // ==========================================
+
+    checkSession();
+
+  </script>
+</body>
+</html>
