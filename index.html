@@ -443,32 +443,29 @@
   </div>
 
   <script>
-    // ==========================================
-    // 1. SUPABASE CONFIGURATION
-    // ==========================================
+   // ==========================================
+// 1. SUPABASE CONFIGURATION
+// ==========================================
 
-    const SUPABASE_URL = "https://bbjxvwanbypatrwwucqq.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_5CHL--CNM3JXXqjfqgrTIA_XoFV_463";
+const SUPABASE_URL = "https://bbjxvwanbypatrwwucqq.supabase.co";
 
-    const TABLE = "family_relatives";
+const SUPABASE_ANON_KEY =
+  "sb_publishable_5CHL--CNM3JXXqjfqgrTIA_XoFV_463";
 
-    if (
-      !window.supabase ||
-      SUPABASE_URL.includes("YOUR_") ||
-      SUPABASE_ANON_KEY.includes("YOUR_")
-    ) {
-      console.warn("Configure your Supabase URL and publishable key.");
-    }
+const TABLE = "family_relatives";
 
-    const db = window.supabase.createClient(
-      SUPABASE_URL,
-      SUPABASE_ANON_KEY
-    );
+if (!window.supabase) {
+  throw new Error("Supabase JavaScript library failed to load.");
+}
 
-    let relatives = [];
-    let editingId = null;
-    let currentLanguage = "en";
+const db = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
 
+let relatives = [];
+let editingId = null;
+let currentLanguage = "en";
     // ==========================================
     // 2. TRANSLATIONS
     // ==========================================
