@@ -163,15 +163,52 @@
     .login-box h2 { margin-top: 0; }
 
     .message {
-      padding: 11px;
+      padding: 14px;
       border-radius: 8px;
       margin: 12px 0;
       font-size: 13px;
       display: none;
+      border: 1px solid transparent;
+      overflow-wrap: anywhere;
     }
 
-    .message.error { background: #fee4e2; color: #b42318; }
-    .message.info { background: #e9e7ff; color: #3830a5; }
+    .message.error {
+      background: #fee4e2;
+      color: #b42318;
+      border-color: #fda29b;
+    }
+
+    .message.info {
+      background: #e9e7ff;
+      color: #3830a5;
+      border-color: #c9c5ff;
+    }
+
+    .message-title {
+      font-weight: 700;
+      margin-bottom: 7px;
+    }
+
+    .message-text {
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+
+    .message-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .message-actions button {
+      padding: 7px 11px;
+      font-size: 12px;
+    }
+
+    .message-actions .message-close {
+      background: #667085;
+    }
 
     .modal-backdrop {
       position: fixed;
@@ -385,7 +422,7 @@
               placeholder="Uncle, Aunt, Cousin...">
           </div>
 
-          <div class="field">me 
+          <div class="field">
             <label>Family side *</label>
             <select id="relativeSide" required>
               <option value="Paternal">Paternal</option>
@@ -506,15 +543,91 @@ let currentLanguage = "en";
 
     const $ = id => document.getElementById(id);
 
-    function showMessage(message, type = "info", target = "appMessage") {
+    function getErrorDetails(error) {
+      if (!error) return "Unknown error.";
+      const parts = [];
+      if (error.message) parts.push(error.message);
+      if (error.details) parts.push("Details: " + error.details);
+      if (error.hint) parts.push("Hint: " + error.hint);
+      if (error.code) parts.push("Code: " + error.code);
+      if (error.status) parts.push("HTTP Status: " + error.status);
+      return parts.join("\n") || String(error);
+    }
+
+    function clearMessage(target = "appMessage") {
       const el = $(target);
-      el.textContent = message;
+      if (!el) return;
+      el.innerHTML = "";
+      el.className = "message";
+      el.style.display = "none";
+    }
+
+    function showMessage(message, type = "info", target = "appMessage", options = {}) {
+      const el = $(target);
+      if (!el) {
+        console.error(`[${type}]`, message);
+        return;
+      }
+
+      const persistent =
+        options.persistent !== undefined
+          ? options.persistent
+          : type === "error";
+
+      const title =
+        options.title ||
+        (type === "error" ? "Error" : "Information");
+
+      const retry = options.retry || null;
+
       el.className = "message " + type;
       el.style.display = "block";
 
-      setTimeout(() => {
-        el.style.display = "none";
-      }, 5000);
+      el.innerHTML = `
+        <div class="message-title">${escapeHTML(title)}</div>
+        <div class="message-text">${escapeHTML(message)}</div>
+        <div class="message-actions">
+          ${retry ? '<button type="button" class="message-retry">Retry</button>' : ""}
+          ${persistent ? '<button type="button" class="message-close">Close</button>' : ""}
+        </div>
+      `;
+
+      const closeButton = el.querySelector(".message-close");
+      if (closeButton) {
+        closeButton.addEventListener("click", () => clearMessage(target));
+      }
+
+      const retryButton = el.querySelector(".message-retry");
+      if (retryButton && retry) {
+        retryButton.addEventListener("click", async () => {
+          retryButton.disabled = true;
+          retryButton.textContent = "Retrying...";
+          try {
+            await retry();
+          } catch (retryError) {
+            showMessage(
+              getErrorDetails(retryError),
+              "error",
+              target,
+              { title, persistent: true, retry }
+            );
+          }
+        });
+      }
+
+      // SUCCESS/INFO auto-hide after 5 seconds.
+      // ERRORS NEVER auto-hide.
+      if (!persistent) {
+        setTimeout(() => clearMessage(target), 5000);
+      }
+    }
+
+    function showPersistentError(message, target = "appMessage", title = "Database Error", retry = null) {
+      showMessage(message, "error", target, {
+        title,
+        persistent: true,
+        retry
+      });
     }
 
     function setLoading(button, loading, normalText) {
@@ -546,7 +659,11 @@ let currentLanguage = "en";
       const { data, error } = await db.auth.getSession();
 
       if (error) {
-        showMessage(error.message, "error", "loginMessage");
+        showPersistentError(
+          getErrorDetails(error),
+          "loginMessage",
+          "Authentication / Login Error"
+        );
         return;
       }
 
@@ -585,7 +702,11 @@ let currentLanguage = "en";
       setLoading(button, false, "Login");
 
       if (error) {
-        showMessage(error.message, "error", "loginMessage");
+        showPersistentError(
+          getErrorDetails(error),
+          "loginMessage",
+          "Authentication / Login Error"
+        );
         return;
       }
 
@@ -597,7 +718,11 @@ let currentLanguage = "en";
       const { error } = await db.auth.signOut();
 
       if (error) {
-        showMessage(error.message, "error");
+        showPersistentError(
+          getErrorDetails(error),
+          "appMessage",
+          "Delete Failed"
+        );
         return;
       }
 
@@ -624,7 +749,12 @@ let currentLanguage = "en";
 
       if (error) {
         $("relativeTable").innerHTML = "";
-        showMessage("Database error: " + error.message, "error");
+        showPersistentError(
+          getErrorDetails(error),
+          "appMessage",
+          "Unable to Load Family Records",
+          loadRelatives
+        );
         return;
       }
 
@@ -640,14 +770,14 @@ let currentLanguage = "en";
       $("totalCount").textContent = relatives.length;
 
       $("paternalCount").textContent =
-        relatives.filter(r => r.side === "Paternal").length;
+        relatives.filter(r => (r.family_side || r.side) === "Paternal").length;
 
       $("maternalCount").textContent =
-        relatives.filter(r => r.side === "Maternal").length;
+        relatives.filter(r => (r.family_side || r.side) === "Maternal").length;
 
       $("sentCount").textContent =
-        relatives.filter(r => r.status === "Sent" ||
-                              r.status === "Confirmed").length;
+        relatives.filter(r => (r.invitation_status || r.status) === "Sent" ||
+                              (r.invitation_status || r.status) === "Confirmed").length;
 
       const search = $("searchInput").value.toLowerCase().trim();
       const side = $("sideFilter").value;
@@ -655,13 +785,14 @@ let currentLanguage = "en";
 
       const filtered = relatives.filter(r => {
         const searchable = [
-          r.name, r.relation, r.phone, r.city, r.notes
+          r.name, r.relation, r.phone, r.city, r.notes,
+          r.family_side, r.invitation_status
         ].join(" ").toLowerCase();
 
         return (
           (!search || searchable.includes(search)) &&
-          (!side || r.side === side) &&
-          (!status || r.status === status)
+          (!side || (r.family_side || r.side) === side) &&
+          (!status || (r.invitation_status || r.status) === status)
         );
       });
 
@@ -679,11 +810,11 @@ let currentLanguage = "en";
         tr.innerHTML = `
           <td><strong>${escapeHTML(r.name)}</strong></td>
           <td>${escapeHTML(r.relation)}</td>
-          <td>${escapeHTML(r.side)}</td>
+          <td>${escapeHTML(r.family_side || r.side)}</td>
           <td>${escapeHTML(r.phone || "-")}</td>
           <td>${escapeHTML(r.city || "-")}</td>
-          <td><span class="badge ${badgeClass(r.status)}">
-            ${escapeHTML(r.status)}
+          <td><span class="badge ${badgeClass(r.invitation_status || r.status)}">
+            ${escapeHTML(r.invitation_status || r.status || "Pending")}
           </span></td>
           <td><span class="badge ${badgeClass(r.rsvp_status)}">
             ${escapeHTML(r.rsvp_status || "Pending")}
@@ -744,10 +875,10 @@ let currentLanguage = "en";
       $("relativeId").value = r.id;
       $("relativeName").value = r.name || "";
       $("relativeRelation").value = r.relation || "";
-      $("relativeSide").value = r.side || "Paternal";
+      $("relativeSide").value = r.family_side || r.side || "Paternal";
       $("relativePhone").value = r.phone || "";
       $("relativeCity").value = r.city || "";
-      $("relativeStatus").value = r.status || "Pending";
+      $("relativeStatus").value = r.invitation_status || r.status || "Pending";
       $("invitationDate").value = r.invitation_date || "";
       $("rsvpStatus").value = r.rsvp_status || "Pending";
       $("relativeNotes").value = r.notes || "";
@@ -773,10 +904,10 @@ let currentLanguage = "en";
       const record = {
         name: $("relativeName").value.trim(),
         relation: $("relativeRelation").value.trim(),
-        side: $("relativeSide").value,
+        family_side: $("relativeSide").value,
         phone: $("relativePhone").value.trim() || null,
         city: $("relativeCity").value.trim() || null,
-        status: $("relativeStatus").value,
+        invitation_status: $("relativeStatus").value,
         invitation_date: $("invitationDate").value || null,
         rsvp_status: $("rsvpStatus").value,
         notes: $("relativeNotes").value.trim() || null,
@@ -799,7 +930,11 @@ let currentLanguage = "en";
       setLoading(saveButton, false, "Save Relative");
 
       if (result.error) {
-        showMessage(result.error.message, "error");
+        showPersistentError(
+          getErrorDetails(result.error),
+          "appMessage",
+          editingId ? "Update Failed" : "Save Failed"
+        );
         return;
       }
 
@@ -824,7 +959,11 @@ let currentLanguage = "en";
         .eq("id", id);
 
       if (error) {
-        showMessage(error.message, "error");
+        showPersistentError(
+          getErrorDetails(error),
+          "appMessage",
+          "Delete Failed"
+        );
         return;
       }
 
@@ -853,54 +992,9 @@ let currentLanguage = "en";
       }
 
       const columns = [
-        "name", "relation", "side", "phone", "city",
-        "status", "invitation_date", "rsvp_status", "notes"
+        "name", "relation", "family_side", "phone", "city",
+        "invitation_status", "invitation_date", "rsvp_status", "notes"
       ];
 
       const quote = value =>
         '"' + String(value ?? "").replace(/"/g, '""') + '"';
-
-      const rows = [
-        columns.join(","),
-        ...relatives.map(r => columns.map(c => quote(r[c])).join(","))
-      ];
-
-      const blob = new Blob(
-        ["\uFEFF" + rows.join("\r\n")],
-        { type: "text/csv;charset=utf-8;" }
-      );
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "family-directory.csv";
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-
-    // ==========================================
-    // 11. LANGUAGE
-    // ==========================================
-
-    $("languageSelect").addEventListener("change", event => {
-      currentLanguage = event.target.value;
-      const t = translations[currentLanguage];
-
-      document.querySelector(".topbar h1").textContent = t.title;
-      $("addBtn").textContent = t.add;
-      document.querySelectorAll(".stat .muted")[0].textContent = t.total;
-      document.querySelectorAll(".stat .muted")[1].textContent = t.paternal;
-      document.querySelectorAll(".stat .muted")[2].textContent = t.maternal;
-      document.querySelectorAll(".stat .muted")[3].textContent = t.sent;
-      $("emptyState").textContent = t.empty;
-    });
-
-    // ==========================================
-    // 12. INITIALIZATION
-    // ==========================================
-
-    checkSession();
-
-  </script>
-</body>
-</html>
