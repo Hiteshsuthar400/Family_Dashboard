@@ -1,13 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Family Directory & Invitation Manager</title>
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <style>
     :root {
       --bg: #f4f6fb;
@@ -18,15 +15,26 @@
       --border: #e4e8ef;
       --danger: #d92d20;
       --success: #039855;
+      --warning: #fef0c7;
+      --warning-text: #93370d;
+      --green-bg: #dcfae6;
+      --green-text: #067647;
+      --red-bg: #fee4e2;
+      --red-text: #b42318;
     }
 
     * { box-sizing: border-box; }
 
-    body {
+    html, body {
       margin: 0;
+      min-height: 100%;
       background: var(--bg);
       color: var(--text);
       font-family: Arial, sans-serif;
+    }
+
+    body {
+      padding: 0;
     }
 
     button, input, select, textarea {
@@ -40,6 +48,14 @@
       padding: 10px 14px;
       background: var(--primary);
       color: white;
+      transition: opacity 0.2s ease, transform 0.1s ease;
+    }
+
+    button:hover { opacity: 0.96; }
+    button:active { transform: translateY(1px); }
+    button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
     }
 
     button.secondary {
@@ -56,6 +72,11 @@
       padding: 11px;
       background: white;
       color: var(--text);
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: 2px solid rgba(81, 69, 205, 0.15);
+      border-color: rgba(81, 69, 205, 0.5);
     }
 
     label {
@@ -80,9 +101,15 @@
       margin-bottom: 22px;
     }
 
-    .topbar h1 { margin: 0; font-size: 23px; }
+    .topbar h1 {
+      margin: 0;
+      font-size: 23px;
+    }
 
-    .muted { color: var(--muted); font-size: 13px; }
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+    }
 
     .card {
       background: var(--card);
@@ -90,12 +117,12 @@
       border-radius: 13px;
       padding: 18px;
       margin-bottom: 18px;
-      box-shadow: 0 2px 8px rgba(16,24,40,.03);
+      box-shadow: 0 2px 8px rgba(16, 24, 40, 0.03);
     }
 
     .stats {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 14px;
       margin-bottom: 18px;
     }
@@ -115,7 +142,7 @@
 
     .form-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 13px;
     }
 
@@ -134,9 +161,13 @@
       text-align: left;
       border-bottom: 1px solid var(--border);
       font-size: 13px;
+      vertical-align: top;
     }
 
-    th { color: var(--muted); background: #fafbfc; }
+    th {
+      color: var(--muted);
+      background: #fafbfc;
+    }
 
     .badge {
       display: inline-block;
@@ -144,41 +175,63 @@
       padding: 5px 9px;
       background: #f2f4f7;
       font-size: 11px;
+      font-weight: 700;
     }
 
-    .badge.green { background: #dcfae6; color: #067647; }
-    .badge.yellow { background: #fef0c7; color: #93370d; }
-    .badge.red { background: #fee4e2; color: #b42318; }
+    .badge.green {
+      background: var(--green-bg);
+      color: var(--green-text);
+    }
 
-    .actions { display: flex; gap: 6px; flex-wrap: wrap; }
-    .actions button { padding: 7px 9px; font-size: 12px; }
+    .badge.yellow {
+      background: var(--warning);
+      color: var(--warning-text);
+    }
+
+    .badge.red {
+      background: var(--red-bg);
+      color: var(--red-text);
+    }
+
+    .actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .actions button {
+      padding: 7px 9px;
+      font-size: 12px;
+    }
 
     .hidden { display: none !important; }
 
     .login-box {
-      max-width: 400px;
-      margin: 10vh auto;
+      max-width: 420px;
+      margin: 12vh auto 0;
     }
 
     .login-box h2 { margin-top: 0; }
 
     .message {
+      display: none;
       padding: 14px;
       border-radius: 8px;
       margin: 12px 0;
       font-size: 13px;
-      display: none;
       border: 1px solid transparent;
       overflow-wrap: anywhere;
     }
 
     .message.error {
+      display: block;
       background: #fee4e2;
       color: #b42318;
       border-color: #fda29b;
     }
 
     .message.info {
+      display: block;
       background: #e9e7ff;
       color: #3830a5;
       border-color: #c9c5ff;
@@ -206,14 +259,12 @@
       font-size: 12px;
     }
 
-    .message-actions .message-close {
-      background: #667085;
-    }
+    .message-actions .message-close { background: #667085; }
 
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,.45);
+      background: rgba(0, 0, 0, 0.45);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -253,49 +304,42 @@
       color: var(--muted);
     }
 
-    @media(max-width: 750px) {
-      .stats { grid-template-columns: repeat(2, 1fr); }
+    @media (max-width: 750px) {
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .toolbar { grid-template-columns: 1fr 1fr; }
       .toolbar .search { grid-column: 1 / -1; }
       .container { padding: 12px; }
     }
 
-    @media(max-width: 480px) {
+    @media (max-width: 480px) {
       .form-grid { grid-template-columns: 1fr; }
       .field.full { grid-column: auto; }
       .topbar h1 { font-size: 19px; }
     }
   </style>
 </head>
-
 <body>
-
-  <!-- LOGIN -->
   <section id="loginScreen" class="login-box card">
     <h2>Family Directory</h2>
     <p class="muted">Sign in to manage your family records and invitations.</p>
-
     <div id="loginMessage" class="message error"></div>
 
     <form id="loginForm">
-      <div style="margin-bottom:14px">
+      <div style="margin-bottom:14px;">
         <label>Email address</label>
-        <input id="loginEmail" type="email" required autocomplete="username">
+        <input id="loginEmail" type="email" required autocomplete="username" placeholder="you@example.com" />
       </div>
 
-      <div style="margin-bottom:14px">
+      <div style="margin-bottom:14px;">
         <label>Password</label>
-        <input id="loginPassword" type="password" required
-          autocomplete="current-password">
+        <input id="loginPassword" type="password" required autocomplete="current-password" placeholder="Password" />
       </div>
 
-      <button type="submit" style="width:100%">Login</button>
+      <button type="submit" style="width:100%;">Login</button>
     </form>
   </section>
 
-  <!-- DASHBOARD -->
   <main id="appScreen" class="container hidden">
-
     <header class="topbar">
       <div>
         <h1>Family Directory</h1>
@@ -303,13 +347,13 @@
       </div>
 
       <div class="actions">
-        <select id="languageSelect" style="width:auto">
+        <select id="languageSelect" style="width:auto;">
           <option value="en">English</option>
           <option value="hi">हिन्दी</option>
           <option value="gu">ગુજરાતી</option>
         </select>
-        <button class="secondary" id="exportBtn">Export CSV</button>
-        <button class="danger" id="logoutBtn">Logout</button>
+        <button class="secondary" id="exportBtn" type="button">Export CSV</button>
+        <button class="danger" id="logoutBtn" type="button">Logout</button>
       </div>
     </header>
 
@@ -337,16 +381,16 @@
     <section class="card">
       <div class="topbar">
         <div>
-          <h2 style="margin:0">Relative Directory</h2>
+          <h2 style="margin:0;">Relative Directory</h2>
           <span class="muted">Manage family members and invitation status.</span>
         </div>
-        <button id="addBtn">+ Add Relative</button>
+        <button id="addBtn" type="button">+ Add Relative</button>
       </div>
 
       <div class="toolbar">
         <div class="search">
           <label>Search</label>
-          <input id="searchInput" placeholder="Search name, phone, relation or city...">
+          <input id="searchInput" placeholder="Search name, phone, relation or city..." />
         </div>
 
         <div>
@@ -369,7 +413,7 @@
           </select>
         </div>
 
-        <button class="secondary" id="refreshBtn">Refresh</button>
+        <button class="secondary" id="refreshBtn" type="button">Refresh</button>
       </div>
     </section>
 
@@ -392,34 +436,29 @@
         </table>
       </div>
 
-      <div id="emptyState" class="empty hidden">
-        No family records found.
-      </div>
+      <div id="emptyState" class="empty hidden">No family records found.</div>
     </section>
-
   </main>
 
-  <!-- ADD / EDIT MODAL -->
   <div id="relativeModal" class="modal-backdrop hidden">
     <div class="modal">
       <div class="modal-head">
         <h2 id="modalTitle">Add Relative</h2>
-        <button class="secondary" id="closeModalBtn">Close</button>
+        <button class="secondary" id="closeModalBtn" type="button">Close</button>
       </div>
 
       <form id="relativeForm">
-        <input type="hidden" id="relativeId">
+        <input type="hidden" id="relativeId" />
 
         <div class="form-grid">
           <div class="field">
             <label>Full name *</label>
-            <input id="relativeName" required maxlength="120">
+            <input id="relativeName" required maxlength="120" />
           </div>
 
           <div class="field">
             <label>Relation *</label>
-            <input id="relativeRelation" required
-              placeholder="Uncle, Aunt, Cousin...">
+            <input id="relativeRelation" required placeholder="Uncle, Aunt, Cousin..." />
           </div>
 
           <div class="field">
@@ -433,12 +472,12 @@
 
           <div class="field">
             <label>Phone number</label>
-            <input id="relativePhone" type="tel" maxlength="20">
+            <input id="relativePhone" type="tel" maxlength="20" />
           </div>
 
           <div class="field">
             <label>City / Village</label>
-            <input id="relativeCity" maxlength="100">
+            <input id="relativeCity" maxlength="100" />
           </div>
 
           <div class="field">
@@ -452,7 +491,7 @@
 
           <div class="field">
             <label>Invitation date</label>
-            <input id="invitationDate" type="date">
+            <input id="invitationDate" type="date" />
           </div>
 
           <div class="field">
@@ -466,8 +505,7 @@
 
           <div class="field full">
             <label>Notes</label>
-            <textarea id="relativeNotes" rows="3"
-              placeholder="Additional details..."></textarea>
+            <textarea id="relativeNotes" rows="3" placeholder="Additional details..."></textarea>
           </div>
         </div>
 
@@ -480,68 +518,67 @@
   </div>
 
   <script>
-   // ==========================================
-// 1. SUPABASE CONFIGURATION
-// ==========================================
+    const SUPABASE_URL = "https://bbjxvwanbypatrwwucqq.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_5CHL--CNM3JXXqjfqgrTIA_XoFV_463";
+    const TABLE = "relatives";
 
-const SUPABASE_URL = "https://bbjxvwanbypatrwwucqq.supabase.co";
+    if (!window.supabase) {
+      throw new Error("Supabase JavaScript library failed to load.");
+    }
 
-const SUPABASE_ANON_KEY =
-  "sb_publishable_5CHL--CNM3JXXqjfqgrTIA_XoFV_463";
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-//const TABLE = "family_relatives";
-const TABLE = "relatives";
-if (!window.supabase) {
-  throw new Error("Supabase JavaScript library failed to load.");
-}
-
-const db = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-);
-
-let relatives = [];
-let editingId = null;
-let currentLanguage = "en";
-    // ==========================================
-    // 2. TRANSLATIONS
-    // ==========================================
+    let relatives = [];
+    let editingId = null;
+    let currentLanguage = "en";
 
     const translations = {
       en: {
         title: "Family Directory",
-        add: "+ Add Relative",
         total: "Total relatives",
         paternal: "Paternal",
         maternal: "Maternal",
         sent: "Invitations sent",
-        empty: "No family records found."
+        empty: "No family records found.",
       },
       hi: {
         title: "परिवार निर्देशिका",
-        add: "+ सदस्य जोड़ें",
         total: "कुल रिश्तेदार",
         paternal: "पैतृक परिवार",
         maternal: "मातृ परिवार",
         sent: "भेजे गए निमंत्रण",
-        empty: "कोई रिकॉर्ड नहीं मिला।"
+        empty: "कोई रिकॉर्ड नहीं मिला।",
       },
       gu: {
         title: "પરિવાર ડિરેક્ટરી",
-        add: "+ સભ્ય ઉમેરો",
         total: "કુલ સંબંધીઓ",
         paternal: "પિતૃ પક્ષ",
         maternal: "માતૃ પક્ષ",
         sent: "મોકલેલા આમંત્રણો",
-        empty: "કોઈ રેકોર્ડ મળ્યો નથી."
+        empty: "કોઈ રેકોર્ડ મળ્યો નથી.",
       }
     };
 
-    // ==========================================
-    // 3. UI HELPERS
-    // ==========================================
+    const $ = (id) => document.getElementById(id);
 
-    const $ = id => document.getElementById(id);
+    function escapeHTML(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      }[char]));
+    }
+
+    function getValue(record, ...keys) {
+      for (const key of keys) {
+        if (record && record[key] !== undefined && record[key] !== null && record[key] !== "") {
+          return record[key];
+        }
+      }
+      return "";
+    }
 
     function getErrorDetails(error) {
       if (!error) return "Unknown error.";
@@ -554,14 +591,6 @@ let currentLanguage = "en";
       return parts.join("\n") || String(error);
     }
 
-    function clearMessage(target = "appMessage") {
-      const el = $(target);
-      if (!el) return;
-      el.innerHTML = "";
-      el.className = "message";
-      el.style.display = "none";
-    }
-
     function showMessage(message, type = "info", target = "appMessage", options = {}) {
       const el = $(target);
       if (!el) {
@@ -569,20 +598,12 @@ let currentLanguage = "en";
         return;
       }
 
-      const persistent =
-        options.persistent !== undefined
-          ? options.persistent
-          : type === "error";
-
-      const title =
-        options.title ||
-        (type === "error" ? "Error" : "Information");
-
+      const persistent = options.persistent ?? (type === "error");
+      const title = options.title || (type === "error" ? "Error" : "Information");
       const retry = options.retry || null;
 
-      el.className = "message " + type;
+      el.className = `message ${type}`;
       el.style.display = "block";
-
       el.innerHTML = `
         <div class="message-title">${escapeHTML(title)}</div>
         <div class="message-text">${escapeHTML(message)}</div>
@@ -604,79 +625,91 @@ let currentLanguage = "en";
           retryButton.textContent = "Retrying...";
           try {
             await retry();
-          } catch (retryError) {
-            showMessage(
-              getErrorDetails(retryError),
-              "error",
-              target,
-              { title, persistent: true, retry }
-            );
+          } catch (err) {
+            showMessage(getErrorDetails(err), "error", target, { title, persistent: true, retry });
           }
         });
       }
 
-      // SUCCESS/INFO auto-hide after 5 seconds.
-      // ERRORS NEVER auto-hide.
       if (!persistent) {
         setTimeout(() => clearMessage(target), 5000);
       }
     }
 
+    function clearMessage(target = "appMessage") {
+      const el = $(target);
+      if (!el) return;
+      el.className = "message";
+      el.style.display = "none";
+      el.innerHTML = "";
+    }
+
     function showPersistentError(message, target = "appMessage", title = "Database Error", retry = null) {
-      showMessage(message, "error", target, {
-        title,
-        persistent: true,
-        retry
-      });
+      showMessage(message, "error", target, { title, persistent: true, retry });
     }
 
     function setLoading(button, loading, normalText) {
+      if (!button) return;
       button.disabled = loading;
       button.textContent = loading ? "Please wait..." : normalText;
     }
 
-    function escapeHTML(value) {
-      return String(value ?? "").replace(/[&<>"']/g, char => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;"
-      })[char]);
-    }
-
     function badgeClass(status) {
-      if (["Sent", "Confirmed", "Accepted"].includes(status)) return "green";
-      if (["Declined"].includes(status)) return "red";
+      const clean = (status || "Pending").trim();
+      if (["Sent", "Confirmed", "Accepted"].includes(clean)) return "green";
+      if (["Declined"].includes(clean)) return "red";
       return "yellow";
     }
 
-    // ==========================================
-    // 4. AUTHENTICATION
-    // ==========================================
+    function normalizeStatus(value, fallback = "Pending") {
+      return value || fallback;
+    }
 
-    async function checkSession() {
-      const { data, error } = await db.auth.getSession();
+    function getDisplayFamilySide(record) {
+      return getValue(record, "family_side", "side", "familySide");
+    }
 
-      if (error) {
-        showPersistentError(
-          getErrorDetails(error),
-          "loginMessage",
-          "Authentication / Login Error"
-        );
-        return;
+    function getDisplayInvitationStatus(record) {
+      return normalizeStatus(getValue(record, "invitation_status", "status"), "Pending");
+    }
+
+    function getDisplayRsvp(record) {
+      return normalizeStatus(getValue(record, "rsvp_status", "rsvpStatus"), "Pending");
+    }
+
+    function sanitizePhone(value) {
+      if (!value) return "";
+      let phone = String(value).replace(/[\s()\-]/g, "");
+      phone = phone.replace(/[^\d+]/g, "");
+      if (phone.startsWith("00")) {
+        phone = "+" + phone.slice(2);
       }
+      return phone;
+    }
 
-      if (data.session) {
-        showDashboard();
-      } else {
-        showLogin();
+    function whatsappNumber(value) {
+      const phone = sanitizePhone(value);
+      if (!phone) return "";
+      return phone.replace(/\+/g, "");
+    }
+
+    function updateLanguageUI(lang = currentLanguage) {
+      currentLanguage = lang;
+      const t = translations[lang] || translations.en;
+      document.title = "Family Directory & Invitation Manager";
+      const title = document.querySelector(".topbar h1");
+      if (title) title.textContent = t.title;
+      const totalLabel = document.querySelector(".stat .muted");
+      if (totalLabel) totalLabel.textContent = t.total;
+      if (document.getElementById("emptyState")) {
+        document.getElementById("emptyState").textContent = t.empty;
       }
     }
 
     function showLogin() {
       $("loginScreen").classList.remove("hidden");
       $("appScreen").classList.add("hidden");
+      clearMessage("loginMessage");
     }
 
     async function showDashboard() {
@@ -685,28 +718,39 @@ let currentLanguage = "en";
       await loadRelatives();
     }
 
-    $("loginForm").addEventListener("submit", async event => {
-      event.preventDefault();
+    async function checkSession() {
+      const { data, error } = await db.auth.getSession();
+      if (error) {
+        showPersistentError(getErrorDetails(error), "loginMessage", "Authentication / Login Error");
+        return;
+      }
 
-      const button = event.submitter;
+      if (data.session) {
+        await showDashboard();
+      } else {
+        showLogin();
+      }
+    }
+
+    $("loginForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const button = event.submitter || $("loginForm").querySelector("button[type='submit']");
       setLoading(button, true, "Login");
 
       const email = $("loginEmail").value.trim();
       const password = $("loginPassword").value;
 
-      const { data, error } = await db.auth.signInWithPassword({
-        email,
-        password
-      });
+      if (!email || !password) {
+        setLoading(button, false, "Login");
+        showPersistentError("Please enter both email and password.", "loginMessage", "Authentication / Login Error");
+        return;
+      }
 
+      const { data, error } = await db.auth.signInWithPassword({ email, password });
       setLoading(button, false, "Login");
 
       if (error) {
-        showPersistentError(
-          getErrorDetails(error),
-          "loginMessage",
-          "Authentication / Login Error"
-        );
+        showPersistentError(getErrorDetails(error), "loginMessage", "Authentication / Login Error");
         return;
       }
 
@@ -716,31 +760,22 @@ let currentLanguage = "en";
 
     $("logoutBtn").addEventListener("click", async () => {
       const { error } = await db.auth.signOut();
-
       if (error) {
-        showPersistentError(
-          getErrorDetails(error),
-          "appMessage",
-          "Delete Failed"
-        );
+        showPersistentError(getErrorDetails(error), "appMessage", "Logout Failed");
         return;
       }
-
       relatives = [];
       showLogin();
     });
 
-    db.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT") showLogin();
+    db.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        showLogin();
+      }
     });
 
-    // ==========================================
-    // 5. READ RECORDS
-    // ==========================================
-
     async function loadRelatives() {
-      $("relativeTable").innerHTML =
-        '<tr><td colspan="8">Loading records...</td></tr>';
+      $("relativeTable").innerHTML = '<tr><td colspan="8">Loading records...</td></tr>';
 
       const { data, error } = await db
         .from(TABLE)
@@ -749,12 +784,7 @@ let currentLanguage = "en";
 
       if (error) {
         $("relativeTable").innerHTML = "";
-        showPersistentError(
-          getErrorDetails(error),
-          "appMessage",
-          "Unable to Load Family Records",
-          loadRelatives
-        );
+        showPersistentError(getErrorDetails(error), "appMessage", "Unable to Load Family Records", loadRelatives);
         return;
       }
 
@@ -762,78 +792,74 @@ let currentLanguage = "en";
       renderDashboard();
     }
 
-    // ==========================================
-    // 6. RENDER DASHBOARD
-    // ==========================================
-
     function renderDashboard() {
-      $("totalCount").textContent = relatives.length;
-
-      $("paternalCount").textContent =
-        relatives.filter(r => (r.family_side || r.side) === "Paternal").length;
-
-      $("maternalCount").textContent =
-        relatives.filter(r => (r.family_side || r.side) === "Maternal").length;
-
-      $("sentCount").textContent =
-        relatives.filter(r => (r.invitation_status || r.status) === "Sent" ||
-                              (r.invitation_status || r.status) === "Confirmed").length;
+      const total = relatives.length;
+      $("totalCount").textContent = total;
+      $("paternalCount").textContent = relatives.filter((r) => getDisplayFamilySide(r) === "Paternal").length;
+      $("maternalCount").textContent = relatives.filter((r) => getDisplayFamilySide(r) === "Maternal").length;
+      $("sentCount").textContent = relatives.filter((r) => {
+        const status = getDisplayInvitationStatus(r);
+        return status === "Sent" || status === "Confirmed";
+      }).length;
 
       const search = $("searchInput").value.toLowerCase().trim();
       const side = $("sideFilter").value;
       const status = $("statusFilter").value;
 
-      const filtered = relatives.filter(r => {
+      const filtered = relatives.filter((r) => {
         const searchable = [
-          r.name, r.relation, r.phone, r.city, r.notes,
-          r.family_side, r.invitation_status
+          r.name,
+          r.relation,
+          r.phone,
+          r.city,
+          r.notes,
+          getDisplayFamilySide(r),
+          getDisplayInvitationStatus(r),
+          getValue(r, "family_side", "side"),
+          getDisplayRsvp(r)
         ].join(" ").toLowerCase();
 
         return (
           (!search || searchable.includes(search)) &&
-          (!side || (r.family_side || r.side) === side) &&
-          (!status || (r.invitation_status || r.status) === status)
+          (!side || getDisplayFamilySide(r) === side) &&
+          (!status || getDisplayInvitationStatus(r) === status)
         );
       });
 
       const tbody = $("relativeTable");
       tbody.innerHTML = "";
-
       $("emptyState").classList.toggle("hidden", filtered.length !== 0);
 
-      filtered.forEach(r => {
+      filtered.forEach((r) => {
         const tr = document.createElement("tr");
-
-        const phone = String(r.phone || "").replace(/[^\d+]/g, "");
-        const safePhone = encodeURIComponent(phone);
+        const phone = sanitizePhone(r.phone);
+        const whatsapp = whatsappNumber(r.phone);
+        const familySide = getDisplayFamilySide(r) || "-";
+        const invitationStatus = getDisplayInvitationStatus(r);
+        const rsvpStatus = getDisplayRsvp(r);
 
         tr.innerHTML = `
-          <td><strong>${escapeHTML(r.name)}</strong></td>
-          <td>${escapeHTML(r.relation)}</td>
-          <td>${escapeHTML(r.family_side || r.side)}</td>
+          <td><strong>${escapeHTML(r.name || "-")}</strong></td>
+          <td>${escapeHTML(r.relation || "-")}</td>
+          <td>${escapeHTML(familySide)}</td>
           <td>${escapeHTML(r.phone || "-")}</td>
           <td>${escapeHTML(r.city || "-")}</td>
-          <td><span class="badge ${badgeClass(r.invitation_status || r.status)}">
-            ${escapeHTML(r.invitation_status || r.status || "Pending")}
-          </span></td>
-          <td><span class="badge ${badgeClass(r.rsvp_status)}">
-            ${escapeHTML(r.rsvp_status || "Pending")}
-          </span></td>
+          <td>
+            <span class="badge ${badgeClass(invitationStatus)}">${escapeHTML(invitationStatus)}</span>
+          </td>
+          <td>
+            <span class="badge ${badgeClass(rsvpStatus)}">${escapeHTML(rsvpStatus)}</span>
+          </td>
           <td>
             <div class="actions">
               ${phone ? `
-                <a href="tel:${escapeHTML(phone)}">
-                  <button type="button" class="secondary">Call</button>
-                </a>
-                <a href="https://wa.me/${safePhone}" target="_blank"
-                   rel="noopener">
+                <a href="tel:${escapeHTML(phone)}"><button type="button" class="secondary">Call</button></a>
+                <a href="https://wa.me/${encodeURIComponent(whatsapp)}" target="_blank" rel="noopener noreferrer">
                   <button type="button" class="secondary">WhatsApp</button>
                 </a>
               ` : ""}
-              <button type="button" class="secondary"
-                data-edit="${escapeHTML(r.id)}">Edit</button>
-              <button type="button" class="danger"
-                data-delete="${escapeHTML(r.id)}">Delete</button>
+              <button type="button" class="secondary" data-edit="${escapeHTML(r.id)}">Edit</button>
+              <button type="button" class="danger" data-delete="${escapeHTML(r.id)}">Delete</button>
             </div>
           </td>
         `;
@@ -842,17 +868,13 @@ let currentLanguage = "en";
       });
     }
 
-    $("relativeTable").addEventListener("click", event => {
+    $("relativeTable").addEventListener("click", (event) => {
       const editButton = event.target.closest("[data-edit]");
       const deleteButton = event.target.closest("[data-delete]");
 
       if (editButton) openEdit(editButton.dataset.edit);
       if (deleteButton) deleteRelative(deleteButton.dataset.delete);
     });
-
-    // ==========================================
-    // 7. CREATE / UPDATE
-    // ==========================================
 
     function openModal() {
       $("relativeModal").classList.remove("hidden");
@@ -867,22 +889,20 @@ let currentLanguage = "en";
     }
 
     function openEdit(id) {
-      const r = relatives.find(item => item.id === id);
-      if (!r) return;
+      const record = relatives.find((item) => item.id === id);
+      if (!record) return;
 
       editingId = id;
-
-      $("relativeId").value = r.id;
-      $("relativeName").value = r.name || "";
-      $("relativeRelation").value = r.relation || "";
-      $("relativeSide").value = r.family_side || r.side || "Paternal";
-      $("relativePhone").value = r.phone || "";
-      $("relativeCity").value = r.city || "";
-      $("relativeStatus").value = r.invitation_status || r.status || "Pending";
-      $("invitationDate").value = r.invitation_date || "";
-      $("rsvpStatus").value = r.rsvp_status || "Pending";
-      $("relativeNotes").value = r.notes || "";
-
+      $("relativeId").value = record.id;
+      $("relativeName").value = record.name || "";
+      $("relativeRelation").value = record.relation || "";
+      $("relativeSide").value = getDisplayFamilySide(record) || "Paternal";
+      $("relativePhone").value = record.phone || "";
+      $("relativeCity").value = record.city || "";
+      $("relativeStatus").value = getDisplayInvitationStatus(record);
+      $("invitationDate").value = record.invitation_date || "";
+      $("rsvpStatus").value = getDisplayRsvp(record);
+      $("relativeNotes").value = record.notes || "";
       $("modalTitle").textContent = "Edit Relative";
       openModal();
     }
@@ -895,19 +915,20 @@ let currentLanguage = "en";
     $("closeModalBtn").addEventListener("click", closeModal);
     $("cancelBtn").addEventListener("click", closeModal);
 
-    $("relativeForm").addEventListener("submit", async event => {
+    $("relativeForm").addEventListener("submit", async (event) => {
       event.preventDefault();
-
       const saveButton = $("saveBtn");
       setLoading(saveButton, true, "Save Relative");
 
-      const record = {
+      const formData = {
         name: $("relativeName").value.trim(),
         relation: $("relativeRelation").value.trim(),
         family_side: $("relativeSide").value,
+        side: $("relativeSide").value,
         phone: $("relativePhone").value.trim() || null,
         city: $("relativeCity").value.trim() || null,
         invitation_status: $("relativeStatus").value,
+        status: $("relativeStatus").value,
         invitation_date: $("invitationDate").value || null,
         rsvp_status: $("rsvpStatus").value,
         notes: $("relativeNotes").value.trim() || null,
@@ -917,24 +938,15 @@ let currentLanguage = "en";
       let result;
 
       if (editingId) {
-        result = await db
-          .from(TABLE)
-          .update(record)
-          .eq("id", editingId);
+        result = await db.from(TABLE).update(formData).eq("id", editingId);
       } else {
-        result = await db
-          .from(TABLE)
-          .insert(record);
+        result = await db.from(TABLE).insert(formData);
       }
 
       setLoading(saveButton, false, "Save Relative");
 
       if (result.error) {
-        showPersistentError(
-          getErrorDetails(result.error),
-          "appMessage",
-          editingId ? "Update Failed" : "Save Failed"
-        );
+        showPersistentError(getErrorDetails(result.error), "appMessage", editingId ? "Update Failed" : "Save Failed");
         return;
       }
 
@@ -943,27 +955,17 @@ let currentLanguage = "en";
       await loadRelatives();
     });
 
-    // ==========================================
-    // 8. DELETE
-    // ==========================================
-
     async function deleteRelative(id) {
-      const r = relatives.find(item => item.id === id);
-      if (!r) return;
+      const record = relatives.find((item) => item.id === id);
+      if (!record) return;
 
-      if (!confirm(`Delete ${r.name}? This cannot be undone.`)) return;
+      if (!confirm(`Delete ${record.name || "this relative"}? This cannot be undone.`)) {
+        return;
+      }
 
-      const { error } = await db
-        .from(TABLE)
-        .delete()
-        .eq("id", id);
-
+      const { error } = await db.from(TABLE).delete().eq("id", id);
       if (error) {
-        showPersistentError(
-          getErrorDetails(error),
-          "appMessage",
-          "Delete Failed"
-        );
+        showPersistentError(getErrorDetails(error), "appMessage", "Delete Failed");
         return;
       }
 
@@ -971,19 +973,14 @@ let currentLanguage = "en";
       await loadRelatives();
     }
 
-    // ==========================================
-    // 9. SEARCH / FILTER / REFRESH
-    // ==========================================
-
     $("searchInput").addEventListener("input", renderDashboard);
     $("sideFilter").addEventListener("change", renderDashboard);
     $("statusFilter").addEventListener("change", renderDashboard);
+    $("refreshBtn").addEventListener("click", () => loadRelatives());
 
-    $("refreshBtn").addEventListener("click", loadRelatives);
-
-    // ==========================================
-    // 10. CSV EXPORT
-    // ==========================================
+    $("languageSelect").addEventListener("change", (event) => {
+      updateLanguageUI(event.target.value);
+    });
 
     $("exportBtn").addEventListener("click", () => {
       if (!relatives.length) {
@@ -991,10 +988,36 @@ let currentLanguage = "en";
         return;
       }
 
-      const columns = [
-        "name", "relation", "family_side", "phone", "city",
-        "invitation_status", "invitation_date", "rsvp_status", "notes"
-      ];
+      const columns = ["name", "relation", "family_side", "phone", "city", "invitation_status", "invitation_date", "rsvp_status", "notes"];
+      const csvRows = [columns.join(",")];
 
-      const quote = value =>
-        '"' + String(value ?? "").replace(/"/g, '""') + '"';
+      relatives.forEach((r) => {
+        const row = columns.map((key) => {
+          const value = key === "family_side"
+            ? getDisplayFamilySide(r)
+            : key === "invitation_status"
+              ? getDisplayInvitationStatus(r)
+              : key === "rsvp_status"
+                ? getDisplayRsvp(r)
+                : (r[key] ?? "");
+          return `"${String(value ?? "").replace(/"/g, '""')}"`;
+        });
+        csvRows.push(row.join(","));
+      });
+
+      const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "family-directory.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showMessage("CSV export started.");
+    });
+
+    checkSession();
+  </script>
+</body>
+</html>
